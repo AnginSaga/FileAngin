@@ -1,0 +1,1169 @@
+//DEKLARASI NEXTION (RX3 TX3)
+#include <Nextion.h>
+NexButton b0 = NexButton(3, 2, "b0");
+NexButton b1 = NexButton(3, 3, "b1");
+NexButton b2 = NexButton(3, 4, "b2");
+NexButton b3 = NexButton(3, 5, "b3");
+NexButton b4 = NexButton(3, 6, "b4");
+NexButton b5 = NexButton(3, 7, "b5");
+NexProgressBar p0 = NexProgressBar(4, 1, "p0");
+NexProgressBar p1 = NexProgressBar(4, 2, "p1");
+NexProgressBar p2 = NexProgressBar(4, 3, "p2");
+NexProgressBar p3 = NexProgressBar(4, 4, "p3");
+NexProgressBar p4 = NexProgressBar(4, 5, "p4");
+NexProgressBar p5 = NexProgressBar(4, 6, "p5");
+NexNumber n0 = NexNumber(4, 8, "n0");
+NexNumber n1 = NexNumber(4, 9, "n1");
+NexNumber n2 = NexNumber(4, 12, "n2");
+bool statusb0 = false, statusb1 = false, statusb2 = false, statusb3 = false, statusb4 = false, statusb5 = false;
+NexTouch *nex_listen_list[] = { &b0, &b1, &b2, &b3, &b4, &b5, NULL };
+
+//DEKLARASI SENSOR MAGNET
+int magnetPin = 28;
+int statusMagnet = 0;
+
+//DEKLARASI INFRARED
+const int infraredPin = 8;
+int statusInfrared;
+
+//DEKLARASI LOAD CELL
+#include "HX711.h"
+#define DOUT1 A0
+#define CLK1 A1
+#define DOUT2 A2
+#define CLK2 A3
+#define DOUT3 A4
+#define CLK3 A5
+#define DOUT4 A6
+#define CLK4 A7
+#define DOUT5 A8
+#define CLK5 A9
+#define DOUT6 A10
+#define CLK6 A11
+HX711 scale1(DOUT1, CLK1);
+HX711 scale2(DOUT2, CLK2);
+HX711 scale3(DOUT3, CLK3);
+HX711 scale4(DOUT4, CLK4);
+HX711 scale5(DOUT5, CLK5);
+HX711 scale6(DOUT6, CLK6);
+float calibration_factor1 = 420.5;
+float calibration_factor2 = 515;
+float calibration_factor3 = 391;
+float calibration_factor4 = 489;
+float calibration_factor5 = 418;
+float calibration_factor6 = 483;
+int GRAM1, GRAM2, GRAM3, GRAM4, GRAM5, GRAM6;
+
+//DEKLARASI WATERFLOW
+byte sensorPin1 = 2;
+byte sensorPin2 = 3;
+byte sensorPin3 = 18;
+byte sensorPin4 = 19;
+byte sensorPin5 = 20;
+byte sensorPin6 = 21;
+float calibrationFactor1 = 90;
+float calibrationFactor2 = 90;
+float calibrationFactor3 = 90;
+float calibrationFactor4 = 90;
+float calibrationFactor5 = 90;
+float calibrationFactor6 = 90;
+volatile byte pulseCount1;
+volatile byte pulseCount2;
+volatile byte pulseCount3;
+volatile byte pulseCount4;
+volatile byte pulseCount5;
+volatile byte pulseCount6;
+float flowRate1;
+float flowRate2;
+float flowRate3;
+float flowRate4;
+float flowRate5;
+float flowRate6;
+unsigned int flowMilliLitres1;
+unsigned int flowMilliLitres2;
+unsigned int flowMilliLitres3;
+unsigned int flowMilliLitres4;
+unsigned int flowMilliLitres5;
+unsigned int flowMilliLitres6;
+unsigned long totalMilliLitres1;
+unsigned long totalMilliLitres2;
+unsigned long totalMilliLitres3;
+unsigned long totalMilliLitres4;
+unsigned long totalMilliLitres5;
+unsigned long totalMilliLitres6;
+unsigned long oldTime1;
+unsigned long oldTime2;
+unsigned long oldTime3;
+unsigned long oldTime4;
+unsigned long oldTime5;
+unsigned long oldTime6;
+
+//DEKLARASI RELAY
+#define relay1 31
+#define relay2 33
+#define relay3 35
+#define relay4 37
+#define relay5 39
+#define relay6 41
+
+//OTHER VARIABLE
+String statusSafety;
+int inputSerial = 0;
+bool pumpOn1 = false;
+bool pumpOn2 = false;
+bool pumpOn3 = false;
+bool pumpOn4 = false;
+bool pumpOn5 = false;
+bool pumpOn6 = false;
+
+//VARIABEL PARSING DATA
+char c;
+int Index1, Index2, Index3, Index4, Index5, Index6, Index7, Index8, Index9, Index10, Index11, Index12;
+String myString;
+
+//VARIABEL ORDER REGULER
+String varMenuReguler, varTriggerReguler, varFeedbackReguler, statusPesananReguler;
+int loopReguler = 0;
+
+//VARIABEL ORDER CUSTOM
+String varTriggerCustom, varFeedbackCustom, statusPesananCustom;
+String varStrawberry = "";
+String varMangga = "";
+String varAnggur = "";
+String varLeci = "";
+String varLemon = "";
+String varSprite = "";
+int loopCustom = 0;
+int limitStrawberry = 0;
+int limitMangga = 0;
+int limitAnggur = 0;
+int limitLeci = 0;
+int limitLemon = 0;
+int limitSprite = 0;
+
+void setup() {
+  //SERIAL SETUP
+  Serial.begin(9600);
+  Serial2.begin(9600);
+
+  //NEXTION SETUP
+  dbSerial.begin(9600);
+  nexSerial.begin(9600);
+  nexInit();
+  delay(50);
+  nexSerial.println("Setup begin");
+  b0.attachPush(b0PushCallback, &b0);
+  b1.attachPush(b1PushCallback, &b1);
+  b2.attachPush(b2PushCallback, &b2);
+  b3.attachPush(b3PushCallback, &b3);
+  b4.attachPush(b4PushCallback, &b4);
+  b5.attachPush(b5PushCallback, &b5);
+  nexSerial.println("setup done");
+
+  //WATER FLOW SETUP
+  pinMode(sensorPin1, INPUT);
+  digitalWrite(sensorPin1, HIGH);
+  pinMode(sensorPin2, INPUT);
+  digitalWrite(sensorPin2, HIGH);
+  pinMode(sensorPin3, INPUT);
+  digitalWrite(sensorPin3, HIGH);
+  pinMode(sensorPin4, INPUT);
+  digitalWrite(sensorPin4, HIGH);
+  pinMode(sensorPin5, INPUT);
+  digitalWrite(sensorPin5, HIGH);
+  pinMode(sensorPin6, INPUT);
+  digitalWrite(sensorPin6, HIGH);
+  pulseCount1 = 0;
+  pulseCount2 = 0;
+  pulseCount3 = 0;
+  pulseCount4 = 0;
+  pulseCount5 = 0;
+  pulseCount6 = 0;
+  flowRate1 = 0.0;
+  flowRate2 = 0.0;
+  flowRate3 = 0.0;
+  flowRate4 = 0.0;
+  flowRate5 = 0.0;
+  flowRate6 = 0.0;
+  flowMilliLitres1 = 0;
+  flowMilliLitres2 = 0;
+  flowMilliLitres3 = 0;
+  flowMilliLitres4 = 0;
+  flowMilliLitres5 = 0;
+  flowMilliLitres6 = 0;
+  totalMilliLitres1 = 0;
+  totalMilliLitres2 = 0;
+  totalMilliLitres3 = 0;
+  totalMilliLitres4 = 0;
+  totalMilliLitres5 = 0;
+  totalMilliLitres6 = 0;
+  oldTime1 = 0;
+  oldTime2 = 0;
+  oldTime3 = 0;
+  oldTime4 = 0;
+  oldTime5 = 0;
+  oldTime6 = 0;
+  attachInterrupt(digitalPinToInterrupt(sensorPin1), pulseCounter1, FALLING);
+  attachInterrupt(digitalPinToInterrupt(sensorPin2), pulseCounter2, FALLING);
+  attachInterrupt(digitalPinToInterrupt(sensorPin3), pulseCounter3, FALLING);
+  attachInterrupt(digitalPinToInterrupt(sensorPin4), pulseCounter4, FALLING);
+  attachInterrupt(digitalPinToInterrupt(sensorPin5), pulseCounter5, FALLING);
+  attachInterrupt(digitalPinToInterrupt(sensorPin6), pulseCounter6, FALLING);
+
+  //LOAD CELL SETUP
+  scale1.set_scale();
+  scale2.set_scale();
+  scale3.set_scale();
+  scale4.set_scale();
+  scale5.set_scale();
+  scale6.set_scale();
+  scale1.tare();
+  scale2.tare();
+  scale3.tare();
+  scale4.tare();
+  scale5.tare();
+  scale6.tare();
+
+  //SENSOR MAGNET SETUP
+  pinMode(magnetPin, INPUT);
+
+  //INFRARED SETUP
+  pinMode(infraredPin, INPUT);
+
+  //RELAY SETUP
+  pinMode(relay1, OUTPUT);
+  pinMode(relay2, OUTPUT);
+  pinMode(relay3, OUTPUT);
+  pinMode(relay4, OUTPUT);
+  pinMode(relay5, OUTPUT);
+  pinMode(relay6, OUTPUT);
+  digitalWrite(31, HIGH);
+  digitalWrite(33, HIGH);
+  digitalWrite(35, HIGH);
+  digitalWrite(37, HIGH);
+  digitalWrite(39, HIGH);
+  digitalWrite(41, HIGH);
+}
+
+void loop() {
+  //BAYU LOOP
+  nexLoop(nex_listen_list);
+
+  //ANGIN LOOP
+  bacaMagnet();
+  bacaInfraRed();
+  sensorSafety();
+  bacaLoadCell();
+  kirimSerial();
+  bacaMonitor();
+  manualRelay();
+  parsing();
+  if (varFeedbackReguler == "99" || varFeedbackCustom == "99") {
+    statusPesananReguler = " ";
+    statusPesananCustom = " ";
+  }
+  siklusOrderReguler();
+  siklusOrderCustom();
+  Serial2.println();
+  Serial.println();
+  delay(1000);
+}
+
+//VOID BUTTON MANUAL PADA NEXTION
+void b0PushCallback(void *ptr) {
+  int a = 0;
+  if ((statusb0 == false) && (a == 0)) {
+    digitalWrite(relay1, LOW);
+    statusb0 = true;
+    a++;
+  } else {
+    digitalWrite(relay1, HIGH);
+    statusb0 = false;
+    a = 0;
+  }
+}
+void b1PushCallback(void *ptr) {
+  int b = 0;
+  if ((statusb1 == false) && (b == 0)) {
+    digitalWrite(relay2, LOW);
+    statusb1 = true;
+    b++;
+  } else {
+    digitalWrite(relay2, HIGH);
+    statusb1 = false;
+    b = 0;
+  }
+}
+void b2PushCallback(void *ptr) {
+  int c = 0;
+  if ((statusb2 == false) && (c == 0)) {
+    digitalWrite(relay3, LOW);
+    statusb2 = true;
+    c++;
+  } else {
+    digitalWrite(relay3, HIGH);
+    statusb2 = false;
+    c = 0;
+  }
+  // digitalWrite(relay3, LOW);
+}
+void b3PushCallback(void *ptr) {
+  int d = 0;
+  if ((statusb3 == false) && (d == 0)) {
+    digitalWrite(relay4, LOW);
+    statusb3 = true;
+    d++;
+  } else {
+    digitalWrite(relay4, HIGH);
+    statusb3 = false;
+    d = 0;
+  }
+  //  digitalWrite(relay4, LOW);
+}
+void b4PushCallback(void *ptr) {
+  int a2 = 0;
+  if ((statusb4 == false) && (a2 == 0)) {
+    digitalWrite(relay5, LOW);
+    statusb4 = true;
+    a2++;
+  } else {
+    digitalWrite(relay5, HIGH);
+    statusb4 = false;
+    a2 = 0;
+  }
+}
+void b5PushCallback(void *ptr) {
+  int b2 = 0;
+  if ((statusb5 == false) && (b2 == 0)) {
+    digitalWrite(relay6, LOW);
+    statusb5 = true;
+    b2++;
+  } else {
+    digitalWrite(relay6, HIGH);
+    statusb5 = false;
+    b2 = 0;
+  }
+}
+
+void bacaMagnet() {
+  statusMagnet = digitalRead(magnetPin);
+}
+
+void bacaInfraRed() {
+  statusInfrared = digitalRead(infraredPin);
+}
+
+void sensorSafety() {
+  if (statusMagnet == LOW && statusInfrared == LOW) {
+    statusSafety = "1";
+  } else {
+    statusSafety = "0";
+  }
+}
+
+void bacaLoadCell() {
+  scale1.set_scale(calibration_factor1);
+  scale2.set_scale(calibration_factor2);
+  scale3.set_scale(calibration_factor3);
+  scale4.set_scale(calibration_factor4);
+  scale5.set_scale(calibration_factor5);
+  scale6.set_scale(calibration_factor6);
+  GRAM1 = scale1.get_units(), 4;
+  GRAM2 = scale2.get_units(), 4;
+  GRAM3 = scale3.get_units(), 4;
+  GRAM4 = scale4.get_units(), 4;
+  GRAM5 = scale5.get_units(), 4;
+  GRAM6 = scale6.get_units(), 4;
+}
+
+void kirimSerial() {
+  Serial2.print("|");
+  Serial2.print(statusSafety);
+  Serial2.print("|");
+  Serial2.print(GRAM1);
+  Serial2.print("|");
+  Serial2.print(GRAM2);
+  Serial2.print("|");
+  Serial2.print(GRAM3);
+  Serial2.print("|");
+  Serial2.print(GRAM4);
+  Serial2.print("|");
+  Serial2.print(GRAM5);
+  Serial2.print("|");
+  Serial2.print(GRAM6);
+  Serial2.print("|");
+  Serial2.print(statusPesananReguler);
+  Serial2.print("|");
+  Serial2.print(statusPesananCustom);
+
+  Serial.print("|");
+  Serial.print(statusSafety);
+  Serial.print("|");
+  Serial.print(GRAM1);
+  Serial.print("|");
+  Serial.print(GRAM2);
+  Serial.print("|");
+  Serial.print(GRAM3);
+  Serial.print("|");
+  Serial.print(GRAM4);
+  Serial.print("|");
+  Serial.print(GRAM5);
+  Serial.print("|");
+  Serial.print(GRAM6);
+  Serial.print("|");
+  Serial.print(statusPesananReguler);
+  Serial.print("|");
+  Serial.print(statusPesananCustom);
+
+  Serial.println();
+  Serial.print("Cek Trigger Reguler: ");
+  Serial.println(varTriggerReguler);
+  Serial.print("Cek Trigger Custom : ");
+  Serial.println(varTriggerCustom);
+  Serial.print("Limit Strawberry: ");
+  Serial.println(limitStrawberry);
+  Serial.print("Limit Mangga    : ");
+  Serial.println(limitMangga);
+  Serial.print("Limit Anggur    : ");
+  Serial.println(limitAnggur);
+  Serial.print("Limit Leci      : ");
+  Serial.println(limitLeci);
+  Serial.print("Limit Lemon     : ");
+  Serial.println(limitLemon);
+  Serial.print("Limit Sprite    : ");
+  Serial.println(limitSprite);
+}
+
+void parsing() {
+  while (Serial2.available() > 0) {
+    delay(10);
+    c = Serial2.read();
+    myString += c;
+  }
+  if (myString.length() > 0) {
+    Index1 = myString.indexOf('|');
+    Index2 = myString.indexOf('|', Index1 + 1);
+    Index3 = myString.indexOf('|', Index2 + 1);
+    Index4 = myString.indexOf('|', Index3 + 1);
+    Index5 = myString.indexOf('|', Index4 + 1);
+    Index6 = myString.indexOf('|', Index5 + 1);
+    Index7 = myString.indexOf('|', Index6 + 1);
+    Index8 = myString.indexOf('|', Index7 + 1);
+    Index9 = myString.indexOf('|', Index8 + 1);
+    Index10 = myString.indexOf('|', Index9 + 1);
+    Index11 = myString.indexOf('|', Index10 + 1);
+    Index12 = myString.indexOf('|', Index11 + 1);
+
+    varTriggerReguler = myString.substring(Index1 + 1, Index2);
+    varFeedbackReguler = myString.substring(Index2 + 1, Index3);
+    varMenuReguler = myString.substring(Index3 + 1, Index4);
+    varTriggerCustom = myString.substring(Index4 + 1, Index5);
+    varFeedbackCustom = myString.substring(Index5 + 1, Index6);
+    varStrawberry = myString.substring(Index6 + 1, Index7);
+    varMangga = myString.substring(Index7 + 1, Index8);
+    varAnggur = myString.substring(Index8 + 1, Index9);
+    varLeci = myString.substring(Index9 + 1, Index10);
+    varLemon = myString.substring(Index10 + 1, Index11);
+    varSprite = myString.substring(Index11 + 1, Index12);
+
+    Serial.println();
+    Serial.print("Var Trigger Reguler : ");
+    Serial.println(varTriggerReguler);
+    Serial.print("Var Feedback Reguler: ");
+    Serial.println(varFeedbackReguler);
+    Serial.print("Var Menu Reguler    : ");
+    Serial.println(varMenuReguler);
+    Serial.print("Var Trigger Custom  : ");
+    Serial.println(varTriggerCustom);
+    Serial.print("Var Feedback Custom : ");
+    Serial.println(varFeedbackCustom);
+    Serial.print("Var Strawberry: ");
+    Serial.println(varStrawberry);
+    Serial.print("Var Mangga    : ");
+    Serial.println(varMangga);
+    Serial.print("Var Anggur    : ");
+    Serial.println(varAnggur);
+    Serial.print("Var Leci      : ");
+    Serial.println(varLeci);
+    Serial.print("Var Lemon     : ");
+    Serial.println(varLemon);
+    Serial.print("Var Sprite    : ");
+    Serial.println(varSprite);
+    myString = " ";
+  }
+}
+
+void bacaWaterFlow() {
+  //WATERFLOW 1 (RASA STRAWBERRY)
+  if ((millis() - oldTime1) > 1000) {
+    detachInterrupt(digitalPinToInterrupt(sensorPin1));
+    flowRate1 = ((1000.0 / (millis() - oldTime1)) * pulseCount1) / calibrationFactor1;
+    oldTime1 = millis();
+    flowMilliLitres1 = (flowRate1 / 60) * 1000;
+    totalMilliLitres1 += flowMilliLitres1;
+    unsigned int frac;
+    Serial.print("Water Flow 1 : ");
+    Serial.print(totalMilliLitres1);
+    Serial.println();
+    pulseCount1 = 0;
+    attachInterrupt(digitalPinToInterrupt(sensorPin1), pulseCounter1, FALLING);
+  }
+
+  //WATERFLOW 2 (RASA MANGGA)
+  if ((millis() - oldTime2) > 1000) {
+    detachInterrupt(digitalPinToInterrupt(sensorPin2));
+    flowRate2 = ((1000.0 / (millis() - oldTime2)) * pulseCount2) / calibrationFactor2;
+    oldTime2 = millis();
+    flowMilliLitres2 = (flowRate2 / 60) * 1000;
+    totalMilliLitres2 += flowMilliLitres2;
+    unsigned int frac;
+    Serial.print("Water Flow 2 : ");
+    Serial.print(totalMilliLitres2);
+    Serial.println();
+    pulseCount2 = 0;
+    attachInterrupt(digitalPinToInterrupt(sensorPin2), pulseCounter2, FALLING);
+  }
+
+  //WATERFLOW 3 (RASA ANGGUR)
+  if ((millis() - oldTime3) > 1000) {
+    detachInterrupt(digitalPinToInterrupt(sensorPin3));
+    flowRate3 = ((1000.0 / (millis() - oldTime3)) * pulseCount3) / calibrationFactor3;
+    oldTime3 = millis();
+    flowMilliLitres3 = (flowRate3 / 60) * 1000;
+    totalMilliLitres3 += flowMilliLitres3;
+    unsigned int frac;
+    Serial.print("Water Flow 3 : ");
+    Serial.print(totalMilliLitres3);
+    Serial.println();
+    pulseCount3 = 0;
+    attachInterrupt(digitalPinToInterrupt(sensorPin3), pulseCounter3, FALLING);
+  }
+
+  //WATERFLOW 4 (RASA LECI)
+  if ((millis() - oldTime4) > 1000) {
+    detachInterrupt(digitalPinToInterrupt(sensorPin4));
+    flowRate4 = ((1000.0 / (millis() - oldTime4)) * pulseCount4) / calibrationFactor4;
+    oldTime4 = millis();
+    flowMilliLitres4 = (flowRate4 / 60) * 1000;
+    totalMilliLitres4 += flowMilliLitres4;
+    unsigned int frac;
+    Serial.print("Water Flow 4 : ");
+    Serial.print(totalMilliLitres4);
+    Serial.println();
+    pulseCount4 = 0;
+    attachInterrupt(digitalPinToInterrupt(sensorPin4), pulseCounter4, FALLING);
+  }
+
+  //WATERFLOW 5 (RASA LEMON)
+  if ((millis() - oldTime5) > 1000) {
+    detachInterrupt(digitalPinToInterrupt(sensorPin5));
+    flowRate5 = ((1000.0 / (millis() - oldTime5)) * pulseCount5) / calibrationFactor5;
+    oldTime5 = millis();
+    flowMilliLitres5 = (flowRate5 / 60) * 1000;
+    totalMilliLitres5 += flowMilliLitres5;
+    unsigned int frac;
+    Serial.print("Water Flow 5 : ");
+    Serial.print(totalMilliLitres5);
+    Serial.println();
+    pulseCount5 = 0;
+    attachInterrupt(digitalPinToInterrupt(sensorPin5), pulseCounter5, FALLING);
+  }
+
+  //WATERFLOW 6 (SPRITE)
+  if ((millis() - oldTime6) > 1000) {
+    detachInterrupt(digitalPinToInterrupt(sensorPin6));
+    flowRate6 = ((1000.0 / (millis() - oldTime6)) * pulseCount6) / calibrationFactor6;
+    oldTime6 = millis();
+    flowMilliLitres6 = (flowRate6 / 60) * 1000;
+    totalMilliLitres6 += flowMilliLitres6;
+    unsigned int frac;
+    Serial.print("Water Flow 6 : ");
+    Serial.print(totalMilliLitres6);
+    Serial.println();
+    pulseCount6 = 0;
+    attachInterrupt(digitalPinToInterrupt(sensorPin6), pulseCounter6, FALLING);
+  }
+}
+
+void pulseCounter1() {
+  pulseCount1++;
+}
+void pulseCounter2() {
+  pulseCount2++;
+}
+void pulseCounter3() {
+  pulseCount3++;
+}
+void pulseCounter4() {
+  pulseCount4++;
+}
+void pulseCounter5() {
+  pulseCount5++;
+}
+void pulseCounter6() {
+  pulseCount6++;
+}
+
+void bacaMonitor() {
+  if (Serial.available()) {
+    int incomingData = Serial.parseInt();  // Baca data dari serial dan simpan ke variabel sementara
+    if (incomingData != 0) {
+      inputSerial = incomingData;
+      Serial.print("Variabel Input Serial: ");
+      Serial.println(inputSerial);
+    }
+  }
+}
+
+void manualRelay() {
+  //HIDUPKAN MOTOR 1
+  if (inputSerial == 1) {
+    digitalWrite(relay1, LOW);
+    Serial.print("Motor 1 ON");
+    Serial.println();
+  }
+
+  //HIDUPKAN MOTOR 2
+  if (inputSerial == 2) {
+    digitalWrite(relay2, LOW);
+    Serial.print("Motor 2 ON");
+    Serial.println();
+  }
+
+  //HIDUPKAN MOTOR 3
+  if (inputSerial == 3) {
+    digitalWrite(relay3, LOW);
+    Serial.print("Motor 3 ON");
+    Serial.println();
+  }
+
+  //HIDUPKAN MOTOR 4
+  if (inputSerial == 4) {
+    digitalWrite(relay4, LOW);
+    Serial.print("Motor 4 ON");
+    Serial.println();
+  }
+
+  //HIDUPKAN MOTOR 5
+  if (inputSerial == 5) {
+    digitalWrite(relay5, LOW);
+    Serial.print("Motor 5 ON");
+    Serial.println();
+  }
+
+  //HIDUPKAN MOTOR 6
+  if (inputSerial == 6) {
+    digitalWrite(relay6, LOW);
+    Serial.print("Motor 6 ON");
+    Serial.println();
+  }
+
+  //MATIKAN SEMUA MOTOR
+  if (inputSerial == 90) {
+    digitalWrite(relay1, HIGH);
+    digitalWrite(relay2, HIGH);
+    digitalWrite(relay3, HIGH);
+    digitalWrite(relay4, HIGH);
+    digitalWrite(relay5, HIGH);
+    digitalWrite(relay6, HIGH);
+    totalMilliLitres1 = 0;
+    totalMilliLitres2 = 0;
+    totalMilliLitres3 = 0;
+    totalMilliLitres4 = 0;
+    totalMilliLitres5 = 0;
+    totalMilliLitres6 = 0;
+    Serial.print("Input Serial: Motor OFF dan Reset Water Flow");
+    Serial.println();
+    inputSerial = 0;
+  }
+}
+
+void siklusOrderReguler() {
+  if (varTriggerReguler == "proses" && statusSafety == "1") {
+    varTriggerReguler = "holding";
+    loopReguler = 0;
+    while (loopReguler == 0) {
+      parsing();
+      bacaWaterFlow();
+      pilihMenuReguler();
+      kirimSerial();
+      delay(1000);
+    }
+    digitalWrite(relay1, HIGH);
+    digitalWrite(relay2, HIGH);
+    digitalWrite(relay3, HIGH);
+    digitalWrite(relay4, HIGH);
+    digitalWrite(relay5, HIGH);
+    digitalWrite(relay6, HIGH);
+    totalMilliLitres1 = 0;
+    totalMilliLitres2 = 0;
+    totalMilliLitres3 = 0;
+    totalMilliLitres4 = 0;
+    totalMilliLitres5 = 0;
+    totalMilliLitres6 = 0;
+    Serial.println("Motor Reguler : Semua OFF");
+  }
+
+  if (varTriggerReguler == "finish") {
+    // digitalWrite(relay1, HIGH);
+    // digitalWrite(relay2, HIGH);
+    // digitalWrite(relay3, HIGH);
+    // digitalWrite(relay4, HIGH);
+    // digitalWrite(relay5, HIGH);
+    // digitalWrite(relay6, HIGH);
+    totalMilliLitres1 = 0;
+    totalMilliLitres2 = 0;
+    totalMilliLitres3 = 0;
+    totalMilliLitres4 = 0;
+    totalMilliLitres5 = 0;
+    totalMilliLitres6 = 0;
+    // Serial.println("Motor Reguler : Semua OFF");
+    Serial.println("Water Flow Reguler: Semua OFF");
+  }
+}
+
+void siklusOrderCustom() {
+  if (varTriggerCustom == "proses" && statusSafety == "1") {
+    varTriggerCustom = "holding";
+    mapping();
+    loopCustom = 0;
+    while (loopCustom == 0) {
+      parsing();
+      bacaWaterFlow();
+      pilihMenuCustom();
+      kirimSerial();
+      delay(1000);
+    }
+    digitalWrite(relay1, HIGH);
+    digitalWrite(relay2, HIGH);
+    digitalWrite(relay3, HIGH);
+    digitalWrite(relay4, HIGH);
+    digitalWrite(relay5, HIGH);
+    digitalWrite(relay6, HIGH);
+    totalMilliLitres1 = 0;
+    totalMilliLitres2 = 0;
+    totalMilliLitres3 = 0;
+    totalMilliLitres4 = 0;
+    totalMilliLitres5 = 0;
+    totalMilliLitres6 = 0;
+    Serial.println("Motor Custom  : Semua OFF");
+  }
+
+  if (varTriggerCustom == "finish") {
+    // digitalWrite(relay1, HIGH);
+    // digitalWrite(relay2, HIGH);
+    // digitalWrite(relay3, HIGH);
+    // digitalWrite(relay4, HIGH);
+    // digitalWrite(relay5, HIGH);
+    // digitalWrite(relay6, HIGH);
+    totalMilliLitres1 = 0;
+    totalMilliLitres2 = 0;
+    totalMilliLitres3 = 0;
+    totalMilliLitres4 = 0;
+    totalMilliLitres5 = 0;
+    totalMilliLitres6 = 0;
+    // Serial.println("Motor Custom  : Semua OFF");
+    Serial.println("Water Flow Custom : Semua OFF");
+  }
+}
+
+void pilihMenuReguler() {
+  if (varMenuReguler == " ") {
+    totalMilliLitres1 = 0;
+    totalMilliLitres2 = 0;
+    totalMilliLitres3 = 0;
+    totalMilliLitres4 = 0;
+    totalMilliLitres5 = 0;
+    totalMilliLitres6 = 0;
+  }
+  if (varMenuReguler == "strawberryFizz") {
+    strawberryFizz();
+  }
+  if (varMenuReguler == "mangoSquash") {
+    mangoSquash();
+  }
+  if (varMenuReguler == "limeGrape") {
+    limeGrape();
+  }
+  if (varMenuReguler == "lycheeFizz") {
+    lycheeFizz();
+  }
+}
+
+void strawberryFizz() {
+  //MOTOR 1 = RASA STRAWBERRY
+  if (!pumpOn1 && !pumpOn2 && !pumpOn3) {
+    digitalWrite(relay1, LOW);
+    pumpOn1 = true;
+  }
+  if (totalMilliLitres1 >= 5) {
+    digitalWrite(relay1, HIGH);
+    pumpOn1 = false;
+    totalMilliLitres1 = 0;
+  }
+  delay(50);
+
+  //MOTOR 2 = RASA MANGGA
+  if (!pumpOn1 && !pumpOn2 && !pumpOn3) {
+    digitalWrite(relay2, LOW);
+    pumpOn2 = true;
+  }
+  if (totalMilliLitres2 >= 5) {
+    digitalWrite(relay2, HIGH);
+    pumpOn2 = false;
+    totalMilliLitres2 = 0;
+  }
+  delay(50);
+
+  //MOTOR 3 = RASA ANGGUR
+  if (!pumpOn1 && !pumpOn2 && !pumpOn3) {
+    digitalWrite(relay3, LOW);
+    pumpOn3 = true;
+  }
+  if (totalMilliLitres3 >= 5) {
+    digitalWrite(relay3, HIGH);
+    pumpOn3 = false;
+    totalMilliLitres3 = 0;
+
+    varTriggerReguler = "finish";
+    Serial.print("Status Trigger Reguler: ");
+    Serial.println(varTriggerReguler);
+
+    statusPesananReguler = "finish";
+    Serial.print("Status Pesanan Reguler: ");
+    Serial.println(statusPesananReguler);
+    loopReguler = 1;
+  }
+}
+
+void mangoSquash() {
+  //MOTOR 2 = RASA MANGGA
+  if (!pumpOn2 && !pumpOn3 && !pumpOn4) {
+    digitalWrite(relay2, LOW);
+    pumpOn2 = true;
+  }
+  if (totalMilliLitres2 >= 5) {
+    digitalWrite(relay2, HIGH);
+    pumpOn2 = false;
+    totalMilliLitres2 = 0;
+  }
+  delay(50);
+
+  //MOTOR 3 = RASA ANGGUR
+  if (!pumpOn2 && !pumpOn3 && !pumpOn4) {
+    digitalWrite(relay3, LOW);
+    pumpOn3 = true;
+  }
+  if (totalMilliLitres3 >= 5) {
+    digitalWrite(relay3, HIGH);
+    pumpOn3 = false;
+    totalMilliLitres3 = 0;
+  }
+  delay(50);
+
+  //MOTOR 4 = RASA LECI
+  if (!pumpOn2 && !pumpOn3 && !pumpOn4) {
+    digitalWrite(relay4, LOW);
+    pumpOn4 = true;
+  }
+  if (totalMilliLitres4 >= 5) {
+    digitalWrite(relay4, HIGH);
+    pumpOn4 = false;
+    totalMilliLitres4 = 0;
+
+    varTriggerReguler = "finish";
+    Serial.print("Status Trigger Reguler: ");
+    Serial.println(varTriggerReguler);
+
+    statusPesananReguler = "finish";
+    Serial.print("Status Pesanan: ");
+    Serial.println(statusPesananReguler);
+    loopReguler = 1;
+  }
+}
+
+void limeGrape() {
+  //MOTOR 3 = RASA ANGGUR
+  if (!pumpOn3 && !pumpOn4 && !pumpOn5) {
+    digitalWrite(relay3, LOW);
+    pumpOn3 = true;
+  }
+  if (totalMilliLitres3 >= 5) {
+    digitalWrite(relay3, HIGH);
+    pumpOn3 = false;
+    totalMilliLitres3 = 0;
+  }
+  delay(50);
+
+  //MOTOR 4 = RASA LECI
+  if (!pumpOn3 && !pumpOn4 && !pumpOn5) {
+    digitalWrite(relay4, LOW);
+    pumpOn4 = true;
+  }
+  if (totalMilliLitres4 >= 5) {
+    digitalWrite(relay4, HIGH);
+    pumpOn4 = false;
+    totalMilliLitres4 = 0;
+  }
+  delay(50);
+
+  //MOTOR 5 = RASA LEMON
+  if (!pumpOn3 && !pumpOn4 && !pumpOn5) {
+    digitalWrite(relay5, LOW);
+    pumpOn5 = true;
+  }
+  if (totalMilliLitres5 >= 5) {
+    digitalWrite(relay5, HIGH);
+    pumpOn5 = false;
+    totalMilliLitres5 = 0;
+
+    varTriggerReguler = "finish";
+    Serial.print("Status Trigger Reguler: ");
+    Serial.println(varTriggerReguler);
+
+    statusPesananReguler = "finish";
+    Serial.print("Status Pesanan: ");
+    Serial.println(statusPesananReguler);
+    loopReguler = 1;
+  }
+}
+
+void lycheeFizz() {
+  //MOTOR 4 = RASA LECI
+  if (!pumpOn4 && !pumpOn5 && !pumpOn6) {
+    digitalWrite(relay4, LOW);
+    pumpOn4 = true;
+  }
+  if (totalMilliLitres4 >= 5) {
+    digitalWrite(relay4, HIGH);
+    pumpOn4 = false;
+    totalMilliLitres4 = 0;
+  }
+  delay(50);
+
+  //MOTOR 5 = RASA LEMON
+  if (!pumpOn4 && !pumpOn5 && !pumpOn6) {
+    digitalWrite(relay5, LOW);
+    pumpOn5 = true;
+  }
+  if (totalMilliLitres5 >= 5) {
+    digitalWrite(relay5, HIGH);
+    pumpOn5 = false;
+    totalMilliLitres5 = 0;
+  }
+  delay(50);
+
+  //MOTOR 6 = SPRITE
+  if (!pumpOn4 && !pumpOn5 && !pumpOn6) {
+    digitalWrite(relay6, LOW);
+    pumpOn6 = true;
+  }
+  if (totalMilliLitres6 >= 5) {
+    digitalWrite(relay6, HIGH);
+    pumpOn6 = false;
+    totalMilliLitres6 = 0;
+
+    varTriggerReguler = "finish";
+    Serial.print("Status Trigger Reguler: ");
+    Serial.println(varTriggerReguler);
+
+    statusPesananReguler = "finish";
+    Serial.print("Status Pesanan: ");
+    Serial.println(statusPesananReguler);
+    loopReguler = 1;
+  }
+}
+
+void mapping() {
+  //PESAN CUSTOM 10%
+  if (varStrawberry == "10") {
+    limitStrawberry = 7;
+  }
+  if (varMangga == "10") {
+    limitMangga = 7;
+  }
+  if (varAnggur == "10") {
+    limitAnggur = 7;
+  }
+  if (varLeci == "10") {
+    limitLeci = 7;
+  }
+  if (varLemon == "10") {
+    limitLeci = 7;
+  }
+  if (varSprite == "10") {
+    limitSprite = 7;
+  }
+
+  //PESAN CUSTOM 20%
+  if (varStrawberry == "20") {
+    limitStrawberry = 18.3;
+  }
+  if (varMangga == "20") {
+    limitMangga = 18.3;
+  }
+  if (varAnggur == "20") {
+    limitAnggur = 18.3;
+  }
+  if (varLeci == "20") {
+    limitLeci = 18.3;
+  }
+  if (varLemon == "20") {
+    limitLeci = 18.3;
+  }
+  if (varSprite == "20") {
+    limitSprite = 18.3;
+  }
+
+  //PESAN CUSTOM 30%
+  if (varStrawberry == "30") {
+    limitStrawberry = 29.8;
+  }
+  if (varMangga == "30") {
+    limitMangga = 29.8;
+  }
+  if (varAnggur == "30") {
+    limitAnggur = 29.8;
+  }
+  if (varLeci == "30") {
+    limitLeci = 29.8;
+  }
+  if (varLemon == "30") {
+    limitLeci = 29.8;
+  }
+  if (varSprite == "30") {
+    limitSprite = 29.8;
+  }
+
+  //PESAN CUSTOM 40%
+  if (varStrawberry == "40") {
+    limitStrawberry = 38;
+  }
+  if (varMangga == "40") {
+    limitMangga = 38;
+  }
+  if (varAnggur == "40") {
+    limitAnggur = 38;
+  }
+  if (varLeci == "40") {
+    limitLeci = 38;
+  }
+  if (varLemon == "40") {
+    limitLeci = 38;
+  }
+  if (varSprite == "40") {
+    limitSprite = 38;
+  }
+
+  //PESAN CUSTOM 50%
+  if (varStrawberry == "50") {
+    limitStrawberry = 50;
+  }
+  if (varMangga == "50") {
+    limitMangga = 50;
+  }
+  if (varAnggur == "50") {
+    limitAnggur = 50;
+  }
+  if (varLeci == "50") {
+    limitLeci = 50;
+  }
+  if (varLemon == "50") {
+    limitLeci = 50;
+  }
+  if (varSprite == "50") {
+    limitSprite = 50;
+  }
+}
+
+void pilihMenuCustom() {
+  //MOTOR 1 = RASA STRAWBERRY
+  if (limitStrawberry != 0) {
+    digitalWrite(relay1, LOW);
+    pumpOn1 = true;
+  }
+  if (totalMilliLitres1 >= limitStrawberry) {
+    digitalWrite(relay1, HIGH);
+    pumpOn1 = false;
+    totalMilliLitres1 = 0;
+    limitStrawberry = 0;
+  }
+  delay(50);
+
+  //MOTOR 2 = RASA MANGGA
+  if (limitMangga != 0) {
+    digitalWrite(relay2, LOW);
+    pumpOn2 = true;
+  }
+  if (totalMilliLitres2 >= limitMangga) {
+    digitalWrite(relay2, HIGH);
+    pumpOn2 = false;
+    totalMilliLitres2 = 0;
+    limitMangga = 0;
+  }
+  delay(50);
+
+  //MOTOR 3 = RASA ANGGUR
+  if (limitAnggur != 0) {
+    digitalWrite(relay3, LOW);
+    pumpOn3 = true;
+  }
+  if (totalMilliLitres3 >= limitAnggur) {
+    digitalWrite(relay3, HIGH);
+    pumpOn3 = false;
+    totalMilliLitres3 = 0;
+    limitAnggur = 0;
+  }
+  delay(50);
+
+  //MOTOR 4 = RASA LECI
+  if (limitLeci != 0) {
+    digitalWrite(relay4, LOW);
+    pumpOn4 = true;
+  }
+  if (totalMilliLitres4 >= limitLeci) {
+    digitalWrite(relay4, HIGH);
+    pumpOn4 = false;
+    totalMilliLitres4 = 0;
+    limitLeci = 0;
+  }
+  delay(50);
+
+  //MOTOR 5 = RASA LEMON
+  if (limitLemon != 0) {
+    digitalWrite(relay5, LOW);
+    pumpOn5 = true;
+  }
+  if (totalMilliLitres5 >= limitLemon) {
+    digitalWrite(relay5, HIGH);
+    pumpOn5 = false;
+    totalMilliLitres5 = 0;
+    limitLemon = 0;
+  }
+  delay(50);
+
+  //MOTOR 6 = SPRITE
+  if (limitSprite != 0) {
+    digitalWrite(relay6, LOW);
+    pumpOn6 = true;
+  }
+  if (totalMilliLitres6 >= limitSprite) {
+    digitalWrite(relay6, HIGH);
+    pumpOn6 = false;
+    totalMilliLitres6 = 0;
+    limitSprite = 0;
+  }
+  delay(50);
+
+  if (!pumpOn1 && !pumpOn2 && !pumpOn3 && !pumpOn4 && !pumpOn5 && !pumpOn6) {
+    varTriggerCustom = "finish";
+    Serial.print("Status Trigger Custom: ");
+    Serial.println(varTriggerCustom);
+
+    statusPesananCustom = "finish";
+    Serial.print("Status Pesanan Custom: ");
+    Serial.println(statusPesananCustom);
+
+    loopCustom = 1;
+  }
+}
